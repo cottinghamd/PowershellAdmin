@@ -12,6 +12,9 @@
 	    This script has been made using code portions from the following scripts:
         http://www.ehloworld.com/1026 Pat Richard (pat@innervation.com)
         http://www.get-blog.com/?p=22 Ryan Witschger
+        
+        .USAGE
+        This script is designed to accept user input at run time and requires no command line flags. Simply run the script :)
 
 	.NOTES
 	    Version      			: 1.0
