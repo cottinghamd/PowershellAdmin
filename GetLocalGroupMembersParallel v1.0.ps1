@@ -1,6 +1,6 @@
 ﻿	<#
 	.SYNOPSIS
-	   	This script retrieves the BUILTIN user groups from a computer and their memberships. This allows you to determine which domain groups may have specific rights over a remote machine.
+	This script retrieves the BUILTIN user groups from a computer and their memberships. This allows you to determine which domain groups may have specific rights over a remote machine.
 
 	.DESCRIPTION
         This script remotely connects to computers and retrieves the BUILTIN user memberships. It also outputs 'de-duplicated' administrative group information allowing you to determine which domain groups or users have administrative rights on machines.
