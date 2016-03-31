@@ -7,7 +7,7 @@
 
         This script accepts computer names from an input text file, with each computername on a new line (the script does automatic deduplication of computernames).
 
-        This script will output the results do a defined CSV formatted file as prompted.
+        This script will output the results to a defined CSV formatted file as prompted.
 
 	    This script has been made using code portions from the following scripts:
         http://www.ehloworld.com/1026 Pat Richard (pat@innervation.com)
