@@ -3,7 +3,7 @@
 #This code has been updated to monitor for a new volume mount, catch errors / bans from VT and some export & open results changes
 #Author: David Cottingham
 
-$scantype = $(Read-Host "Please enter '1' for automatic scan or '2' for manual scan")
+$scantype = $(Read-Host "Please enter '1' for USB automatic detection or '2' for manual scan")
 
 If ($scantype -eq 1) {
 
@@ -14,6 +14,12 @@ Unregister-Event -SourceIdentifier volumeChange -ErrorAction SilentlyContinue
 Register-WmiEvent -Class win32_VolumeChangeEvent -SourceIdentifier volumeChange
 Write-Host "Waiting for drive attachment" -ForegroundColor Green
 $newEvent = Wait-Event -SourceIdentifier volumeChange
+
+#This while statement ensures the program only runs upon USB device insert. It checks for the insert type, if it is any other type it removes and adds the event again and loops.
+while ($newEvent.SourceEventArgs.NewEvent.EventType -ne 2){
+Remove-Event -SourceIdentifier volumeChange
+$newEvent = Wait-Event -SourceIdentifier volumeChange
+}
 
 Write-Host "Commencing scan of $($newEvent.SourceEventArgs.NewEvent.DriveName) drive" -ForegroundColor yellow
 
