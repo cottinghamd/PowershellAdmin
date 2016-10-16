@@ -1,8 +1,29 @@
 ﻿#Requires -version 4.0
 #Built mostly from code developed by Emin's blog post which can be found here https://p0w3rsh3ll.wordpress.com/2014/04/05/analysing-files-with-virustotal-com-public-api/
-#This code has been updated to accept a directory entry or path you wish to scan, catch errors / bans from VT and some export changes.
+#This code has been updated to monitor for a new volume mount, catch errors / bans from VT and some export & open results changes
+#Author: David Cottingham
 
-$Path = $(Read-Host "Please enter the drive or path you wish to scan, this can be a drive or directory i.e. 'E:\' or 'E:\Scan\' Directories are searched recursively")
+$scantype = $(Read-Host "Please enter '1' for automatic scan or '2' for manual scan")
+
+If ($scantype -eq 1) {
+
+#To ensure multiple events do not get registered, we first call to unregister any exising event called volumeChange. Errors are supressed.
+Unregister-Event -SourceIdentifier volumeChange -ErrorAction SilentlyContinue
+
+#Register drive monitoring event and wait
+Register-WmiEvent -Class win32_VolumeChangeEvent -SourceIdentifier volumeChange
+Write-Host "Waiting for drive attachment" -ForegroundColor Green
+$newEvent = Wait-Event -SourceIdentifier volumeChange
+
+Write-Host "Commencing scan of $($newEvent.SourceEventArgs.NewEvent.DriveName) drive" -ForegroundColor yellow
+
+$Path = $($newEvent.SourceEventArgs.NewEvent.DriveName)
+
+} else {
+
+$path = $(Read-Host "Please enter the drive or path you wish to scan, this can be a drive or directory i.e. 'E:\' or 'E:\Scan\' Directories are searched recursively")
+
+}
 
 $allfiles = @()
 # We first clear all errors in the automatic variable
@@ -12,7 +33,7 @@ $allfiles = Get-ChildItem -Path $Path -Recurse -Force -Include * -File -ErrorAct
  
 # Let us know what happen
 $Error | Where { $_.CategoryInfo.Reason -eq "PathTooLongException" } | ForEach-Object -Begin{
-    Write-Warning -Message "The following folders contain a file longer than 260 characters"
+    Write-Verbose -Message "The following folders contain a file longer than 260 characters"
     # Get-ChildItem : The specified path, file name, or both are too long. 
     # The fully qualified file name must be less than 260 characters, and the directory name must be less than 248 characters.
 } -Process {
@@ -130,25 +151,28 @@ ForEach-Object {
  
 Write-Verbose -Message ("There's a total of {0} results" -f $results.Count) -Verbose
  
-Write-Verbose -Message ("There's a total of {0} unknown files" -f (
+$unknowncount = ("{0}" -f (
     $results | Where 'VTResults' -eq "Unknown by VT").Count
-) -Verbose
+)
+
+Write-Verbose -Message "There's a total of $unknowncount unknown files" -Verbose
  
 # Export results to CSV
+$outputpath = "$($env:USERPROFILE)\Documents\VT.analysis.$(get-date -f yyyy-MM-dd-hh-mm).csv"
  
 # First unknown files
 ($results | Where 'VTResults' -eq "Unknown by VT") | 
 Select Name,FullName,SHA256,
     @{l='Ratio';e={'Unknown by VT'}},
     @{l='MalwareName';e={[string]::Empty}} | 
-Export-Csv -Path "$($env:USERPROFILE)\Documents\VT.Zipfiles.analysis.csv" -Encoding UTF8  -NoTypeInformation -Delimiter ";"
+Export-Csv -Path "$outputpath" -Encoding UTF8  -NoTypeInformation -Delimiter ","
  
 # Then export files that are identified as malware
-Write-Verbose -Message ("There's a total of {0} known files" -f (
+$knowncount = ("{0}" -f (
     $results | Where 'VTResults' -notin @("Unknown by VT","Header empty issue","Status code issue")).Count
-) -Verbose
+)
 
-$outputpath = "$($env:USERPROFILE)\Documents\VT.analysis.$(get-date -f yyyy-MM-dd-hh-mm).csv"
+Write-Verbose -Message "There's a total of $knowncount known files" -Verbose
 
 ($results | Where 'VTResults' -notin @("Unknown by VT","Header empty issue","Status code issue")) |
 Select Name,FullName,SHA256,
@@ -157,8 +181,16 @@ Select Name,FullName,SHA256,
     }},
     @{l='MalwareName';e={
         ($_.VTResults.Analysis | Where { $_.Result -notmatch "^\-$"}).Result -as [string[]]
-    }} |
+    }} | Export-Csv -Path $outputpath -Encoding UTF8 -Append -NoTypeInformation -Delimiter ","
 
-Export-Csv -Path $outputpath -Encoding UTF8 -Append -NoTypeInformation -Delimiter ","
+If ($knowncount -ne 0) {
 
 Invoke-Item $outputpath
+
+Write-Host "Launching results file $outputpath" -ForegroundColor Green
+
+} else {
+
+Write-Host "There were no detections, please note: there were $unknowncount unknown files. Further detailed results can be found in $outputpath" -ForegroundColor Green
+
+}
