@@ -18,6 +18,8 @@ $newEvent = Wait-Event -SourceIdentifier volumeChange
 Write-Host "Commencing scan of $($newEvent.SourceEventArgs.NewEvent.DriveName) drive" -ForegroundColor yellow
 
 $Path = $($newEvent.SourceEventArgs.NewEvent.DriveName)
+#Remove the WMI event results as we no longer require it. This also prevents old events from firing upon subsequent script runs.
+Remove-Event -SourceIdentifier volumeChange
 
 } else {
 
@@ -39,8 +41,8 @@ $Error | Where { $_.CategoryInfo.Reason -eq "PathTooLongException" } | ForEach-O
 } -Process {
     $_.CategoryInfo.TargetName
 }
-Write-Verbose -Message ('There {0} other type of errors' -f ($Error | Where { $_.CategoryInfo.Reason -ne "PathTooLongException" }).Count) -Verbose
-Write-Verbose -Message ("There's a total of {0} files" -f $allfiles.Count) -Verbose
+
+Write-Host ("There's a total of {0} files" -f $allfiles.Count) -ForegroundColor Green
  
 # Show extensions by occurence
 $allfiles | Group -NoElement -Property Extension | Sort -Property Count -Descending
@@ -63,7 +65,7 @@ ForEach-Object {
  
     $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash
      
-    Write-Verbose -Message ('Searching file {2}/{3} on {0} with sha256 {1}' -f $_.FullName,$hash,$filecount,$totalzip) -Verbose
+    Write-Host ('Searching file {2}/{3} on {0} with sha256 {1}' -f $_.FullName,$hash,$filecount,$totalzip)
      
     # Append a SHA256
     $_ | Add-Member -MemberType NoteProperty -Name SHA256 -Value $hash -Force
@@ -77,7 +79,7 @@ ForEach-Object {
                 $page = Invoke-WebRequest -Method GET -Uri $res.Headers.Location -ErrorAction SilentlyContinue -MaximumRedirection 0
             } catch {
                 Write-Warning -Message "The request on $($res.Headers.Location) returned $($_.Exception.Message)"
-                Write-Host "The server has returned an error, please accept captcha and press any key to continue. If the server is 403 forbidden you have been banned :'(" -foregroundcolor Green
+                Write-Host "The server has returned an error, please accept captcha and press any key to continue. If no captcha is deplayed you have been temporarily banned :'(" -foregroundcolor Yellow
                 start $res.Headers.Location
             Pause
             }
@@ -149,13 +151,13 @@ ForEach-Object {
     $results += $_
 }
  
-Write-Verbose -Message ("There's a total of {0} results" -f $results.Count) -Verbose
+Write-Host ("There's a total of {0} results" -f $results.Count) -ForegroundColor Magenta
  
 $unknowncount = ("{0}" -f (
     $results | Where 'VTResults' -eq "Unknown by VT").Count
 )
 
-Write-Verbose -Message "There's a total of $unknowncount unknown files" -Verbose
+Write-Host "There's a total of $unknowncount unknown files" -ForegroundColor Magenta
  
 # Export results to CSV
 $outputpath = "$($env:USERPROFILE)\Documents\VT.analysis.$(get-date -f yyyy-MM-dd-hh-mm).csv"
@@ -172,7 +174,7 @@ $knowncount = ("{0}" -f (
     $results | Where 'VTResults' -notin @("Unknown by VT","Header empty issue","Status code issue")).Count
 )
 
-Write-Verbose -Message "There's a total of $knowncount known files" -Verbose
+Write-Host "There's a total of $knowncount known files" -ForegroundColor Magenta
 
 ($results | Where 'VTResults' -notin @("Unknown by VT","Header empty issue","Status code issue")) |
 Select Name,FullName,SHA256,
