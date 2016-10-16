@@ -1,6 +1,7 @@
-﻿#Requires -version 4.0
-#Built mostly from code developed by Emin's blog post which can be found here https://p0w3rsh3ll.wordpress.com/2014/04/05/analysing-files-with-virustotal-com-public-api/
-#This code has been updated to monitor for a new volume mount, catch errors / bans from VT and some export & open results changes
+#Requires -version 4.0
+#This powershell script is designed to scan a drive or directory location for files and check the file hashes against VirusTotal.
+#It has the capability to detect the inserting of a USB device into the pc and automatically commence scanning of the volume.
+#Adapted from Emin's codebase which can be found here https://p0w3rsh3ll.wordpress.com/2014/04/05/analysing-files-with-virustotal-com-public-api/
 #Author: David Cottingham
 
 $scantype = $(Read-Host "Please enter '1' for USB automatic detection or '2' for manual scan")
