@@ -137,7 +137,7 @@ ForEach-Object {
                         $obj | Add-Member -MemberType NoteProperty -Name Analysis -Value $analysisar -Force
                         $obj
 
-                         if ($obj.'Detection ratio' -notmatch '0 / 57'){
+                         if ($obj.'Detection ratio' -notmatch '0 / ??'){
                         $knownmalicious++
                         }
 
