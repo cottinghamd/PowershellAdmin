@@ -1,6 +1,7 @@
-#Requires -version 4.0
+﻿#Requires -version 4.0
 #This powershell script is designed to scan a drive or directory location for files and check the file hashes against VirusTotal.
 #It has the capability to detect the inserting of a USB device into the pc and automatically commence scanning of the volume.
+#To stop the cookie errors run the following command line command (note this will reduce IE cookie security) 'reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\3" /t REG_DWORD /v 1A10 /f /d 0'
 #Adapted from Emin's codebase which can be found here https://p0w3rsh3ll.wordpress.com/2014/04/05/analysing-files-with-virustotal-com-public-api/
 #Author: David Cottingham
 
@@ -58,7 +59,8 @@ Start-Sleep -Seconds 1
  
 $totalzip = ($allfiles | Where { $_.Extension }).Count
 $filecount = 0
- 
+$knownmalicious = 0
+
 # Select only files with a zip extension
 $results = @()
 $allfiles | Where { $_.Extension } | 
@@ -134,6 +136,11 @@ ForEach-Object {
                         }
                         $obj | Add-Member -MemberType NoteProperty -Name Analysis -Value $analysisar -Force
                         $obj
+
+                         if ($obj.'Detection ratio' -notmatch '0 / 57'){
+                        $knownmalicious++
+                        }
+
                         $_ | Add-Member -MemberType NoteProperty -Name VTResults -Value $obj -Force
                     } else {
                         # Write-Warning -Message "$outtext # is because the file has probably been never submitted"
@@ -182,6 +189,7 @@ $knowncount = ("{0}" -f (
 )
 
 Write-Host "There's a total of $knowncount known files" -ForegroundColor Magenta
+Write-Host "There's a total of $knownmalicious potentially malicious files" -ForegroundColor Magenta
 
 ($results | Where 'VTResults' -notin @("Unknown by VT","Header empty issue","Status code issue")) |
 Select Name,FullName,SHA256,
@@ -192,7 +200,7 @@ Select Name,FullName,SHA256,
         ($_.VTResults.Analysis | Where { $_.Result -notmatch "^\-$"}).Result -as [string[]]
     }} | Export-Csv -Path $outputpath -Encoding UTF8 -Append -NoTypeInformation -Delimiter ","
 
-If ($knowncount -ne 0) {
+If ($knownmalicious -ne 0) {
 
 Invoke-Item $outputpath
 
@@ -200,6 +208,6 @@ Write-Host "Launching results file $outputpath" -ForegroundColor Green
 
 } else {
 
-Write-Host "There were no detections, please note: there were $unknowncount unknown files. Further detailed results can be found in $outputpath" -ForegroundColor Green
+Write-Host "There were no detections with a ratio count higher than 0, Note: there were $unknowncount unknown files. Further detailed results can be found in $outputpath" -ForegroundColor Green
 
 }
