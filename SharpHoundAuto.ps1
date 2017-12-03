@@ -1,4 +1,4 @@
-﻿#Requires -version 2.0
+#Requires -version 2.0
 #Author: David Cottingham
 #This script reads a list of domain names from a file called 'targetdomains.txt'
 #It then passes the commands to SharpHound to collect all information and places the results in named subdirectories.
@@ -44,9 +44,9 @@ write-host "Sharphound found $sharphoundlocation"
                 {
                     #send commands to sharphound
                     write-host "$sharphoundlocation -d $_"
-                    Invoke-Expression "$sharphoundlocation -d $_ -f `"$working\$_`""
-                    Invoke-Expression "$sharphoundlocation -d $_ -c ObjectProps -f `"$working\$_`""
-                    Invoke-Expression "$sharphoundlocation -d $_ -c ACL -f `"$working\$_`""
+                    Invoke-Expression "$sharphoundlocation -d $_ --CSVFolder `"$working\$_`" --CSVPrefix `"$_`""
+                    Invoke-Expression "$sharphoundlocation -d $_ -c ObjectProps --CSVFolder `"$working\$_`" --CSVPrefix `"$_`""
+                    Invoke-Expression "$sharphoundlocation -d $_ -c ACL --CSVFolder `"$working\$_`" --CSVPrefix `"$_`""
                     write-host "Collection of $_ complete, files written to $working\$_\" -ForegroundColor Green
                 }
                 else
