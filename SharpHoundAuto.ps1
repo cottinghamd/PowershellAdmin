@@ -46,6 +46,7 @@ write-host "Sharphound found $sharphoundlocation"
                     Invoke-Expression "./sharphound.exe -d $_ --CSVFolder `"$working\$_`" --CSVPrefix `"$_`""
                     Invoke-Expression "./sharphound.exe -d $_ -c ObjectProps --CSVFolder `"$working\$_`" --CSVPrefix `"$_`""
                     Invoke-Expression "./sharphound.exe -d $_ -c ACL --CSVFolder `"$working\$_`" --CSVPrefix `"$_`""
+                    Invoke-Expression "./sharphound.exe -d $_ -c Container --CSVFolder `"$working\$_`" --CSVPrefix `"$_`""
                     write-host "Collection of $_ complete, files written to $working\$_\" -ForegroundColor Green
                 }
                 else
