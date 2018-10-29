@@ -50,9 +50,13 @@ function Validate-SPF ($domain)
 	{
 		$MXRecord = "No Result"
 	}
+	elseif ($DNSResult -eq "No DNS Record Found")
+	{
+		$MXRecord = "No DNS Record Found"
+	}
 	else
 	{
-		$MXRecord = $DNSResult.Type
+		$MXRecord = $DNSResult.Type |Out-String
 	}
 	
 	#Check to see if there is an SPF Result
@@ -72,7 +76,7 @@ function Validate-SPF ($domain)
 		#populate the array
 		$res.message = $result
 		$res.txt = $message
-		$res.record = $($y.strings)
+		$res.record = $($y.strings) | Out-String
 		$res.Type = $MXRecord
 		
 		#Scan for the result in the message
@@ -111,8 +115,10 @@ function Validate-SPF ($domain)
 
 function Get-DNS ([String]$domain)
 {
-	resolve-dnsname $domain -type MX
-	resolve-dnsname $domain -type TXT
+    try { resolve-dnsname $domain -type MX -ErrorAction Stop}
+    catch { Write-Output "No DNS Record Found" }
+    try { resolve-dnsname $domain -type TXT -ErrorAction Stop}
+    catch { Write-Output "No DNS Record Found" }
 }
 
 #loop through the sites to scan
@@ -123,5 +129,3 @@ $SitestoScan | ForEach-Object{
 
 #collect the results and output to CSV
 $SiteResults | Export-Csv -Path "$WorkingDir\results.csv"
-
-
