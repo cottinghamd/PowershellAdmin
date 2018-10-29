@@ -35,7 +35,8 @@ function Validate-SPF ($domain)
 	
 	
 	#Create an array called 'res' and put the domain into it
-	$res = "" | select domain, result, message, txt, record, Type
+	$res = "" | select domain, result, record, Type, NameExchange
+    #$res = "" | select domain, result, message, txt, record, Type
 	$res.domain = $domain
 	
 	If ($DNSResult.Type -eq "MX")
@@ -74,9 +75,10 @@ function Validate-SPF ($domain)
 		$message = $result.replace("`r`n", "--")
 		
 		#populate the array
-		$res.message = $result
-		$res.txt = $message
-		$res.record = $($y.strings) | Out-String
+		#$res.message = $result
+		#$res.txt = $message
+        $res.NameExchange = $DNSResult.NameExchange |Out-String
+		$res.record = $($y.strings.replace("`r`n", "")) | Out-String
 		$res.Type = $MXRecord
 		
 		#Scan for the result in the message
@@ -93,9 +95,10 @@ function Validate-SPF ($domain)
 	else
 	{
 		#populate the array with dummy values
-		$res.message = "N/A"
+		#$res.message = "N/A"
 		$res.result = "No SPF Record"
-		$res.txt = "N/A"
+        $res.NameExchange = "N/A"
+		#$res.txt = "N/A"
 		
 		If ($y.Type -eq $null)
 		{
