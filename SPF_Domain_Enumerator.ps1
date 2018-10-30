@@ -31,33 +31,33 @@ function Validate-SPF ($domain)
 	
 	#Call the dns function to check for SPF Records
 	$DNSResult = Get-DNS $domain
-	$y = $DNSResult | where { $_.strings -like "*spf1*" } | select name, strings, Type
-	
+	$y = $DNSResult | where { $_.strings -like "*=spf*" } | select name, strings, Type
+	Write-Host "Querying Records for $domain"
 	
 	#Create an array called 'res' and put the domain into it
-	$res = "" | select domain, result, record, Type, NameExchange
+	$res = "" | select domain, result, record, Type, NameExchange,MatchHandler
     #$res = "" | select domain, result, message, txt, record, Type
 	$res.domain = $domain
 	
 	If ($DNSResult.Type -eq "MX")
 	{
-		$MXRecord = "MX"
+		[string]$MXRecord = "MX"
 	}
 	elseif ($DNSResult.Type -eq "TXT")
 	{
-		$MXRecord = "TXT"
+		[string]$MXRecord = "TXT"
 	}
 	elseif ($DNSResult -eq $null)
 	{
-		$MXRecord = "No Result"
+		[string]$MXRecord = "No Result"
 	}
 	elseif ($DNSResult -eq "No DNS Record Found")
 	{
-		$MXRecord = "No DNS Record Found"
+		[string]$MXRecord = "No DNS Record Found"
 	}
 	else
 	{
-		$MXRecord = $DNSResult.Type |Out-String
+		[string]$MXRecord = $DNSResult.Type
 	}
 	
 	#Check to see if there is an SPF Result
@@ -77,18 +77,45 @@ function Validate-SPF ($domain)
 		#populate the array
 		#$res.message = $result
 		#$res.txt = $message
-        $res.NameExchange = $DNSResult.NameExchange |Out-String
-		$res.record = $($y.strings.replace("`r`n", "")) | Out-String
+
+        #this is done because using |Out-String puts a carriage return at the end of each SPF record, it's frustrating looking at the CSV.
+        [string]$record = $y.strings.replace("`r`n", " ")
+		$res.record = $record
 		$res.Type = $MXRecord
-		
+        [string]$NameExchange = $DNSResult.NameExchange
+        $res.NameExchange = $NameExchange
+
+        #This section of the script attempts to determine how the match handler -all is formed, it will also match a null SPF record. Does it hard fail mail? Does it Soft Fail? etc?
+        If ($($y.strings) -like '*v=spf1 -all*')
+        {
+        $res.MatchHandler = "Null SPF (Non-Mail Sending Domain)"
+		}        
+        ElseIf ($($y.strings) -like '*-all*')
+        {
+        $res.MatchHandler = "Hard Fail"
+		}
+        ElseIf ($($y.strings) -like '*~all*')
+        {
+        $res.MatchHandler = "Soft Fail"
+        }
+        ElseIf ($($y.strings) -like '*\?all*')
+        {
+        $res.MatchHandler = "Neutral"
+        }
+        Else 
+        {
+        $res.MatchHandler = "Pass (SPF Will Pass All Mail)"
+        }
+
+
 		#Scan for the result in the message
 		if ($message -like "*passed*")
 		{
-			$res.result = "Passed"
+			$res.result = "Passed - This record is valid"
 		}
 		else
 		{
-			$res.result = "FAIL"
+			$res.result = "FAIL - This record will be ignored"
 		}
 	}
 	#If there was no SPF Record found run the following
@@ -97,18 +124,20 @@ function Validate-SPF ($domain)
 		#populate the array with dummy values
 		#$res.message = "N/A"
 		$res.result = "No SPF Record"
-        $res.NameExchange = "N/A"
+        $res.MatchHandler = "-"
+        [string]$NameExchange = $DNSResult.NameExchange
+        $res.NameExchange = $NameExchange
 		#$res.txt = "N/A"
 		
 		If ($y.Type -eq $null)
 		{
-			$type = "N/A"
+			$type = "-"
 			$res.Type = $MXRecord
 		}
 		
 		If ($y.strings -eq $null)
 		{
-			$record = "N/A"
+			$record = "-"
 			$res.record = $record
 		}
 	}
@@ -132,3 +161,4 @@ $SitestoScan | ForEach-Object{
 
 #collect the results and output to CSV
 $SiteResults | Export-Csv -Path "$WorkingDir\results.csv"
+Write-Host "Report has been written to $WorkingDir\results.csv"
