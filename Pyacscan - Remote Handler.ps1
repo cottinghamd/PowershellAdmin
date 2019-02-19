@@ -13,7 +13,7 @@
 
 Param ($MaxThreads = 50,
 	$SleepTimer = 500,
-	$MaxWaitAtEnd = 84000)
+	$MaxWaitAtEnd = 168000)
 
 #check for administrator privileges
 If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
@@ -127,7 +127,7 @@ $Complete = Get-date
 While ($(Get-Job -State Running).count -gt 0)
 {
 	$ComputersStillRunning = ""
-	ForEach ($System  in $(Get-Job -state running)) { $ComputersStillRunning += ", $($System.name)" }
+	ForEach ($server  in $(Get-Job -state running)) { $ComputersStillRunning += ", $($server.name)" }
 	$ComputersStillRunning = $ComputersStillRunning.Substring(2)
 	Write-Progress  "Nearly Done, Waiting For Last Jobs To Finish"
 	write-output  "$($(Get-Job -State Running).count) threads remaining"
