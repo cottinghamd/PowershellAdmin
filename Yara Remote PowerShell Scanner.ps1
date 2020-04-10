@@ -59,6 +59,18 @@ else
     break
 }
 
+$vcruntime = $(Read-Host "Please enter the path to the vcruntime140.dll (this adds support for hosts that don't have C++ Runtime installed), for example C:\Windows\System32\vcruntime140.dll")
+If (Test-Path -Path $vcruntime -ErrorAction SilentlyContinue)
+{
+    #Do nothing
+}
+else
+{
+	write-host "vcruntime140.dll not found, please check the path you entered" -ForegroundColor Red
+	pause
+    break
+}
+
 
 $ResultsPath = $(Read-Host "Please enter the directory you want to output scan results to, for example C:\temp\results (the directory must exist! no trailing \ character required)")
 If (Test-Path -Path $ResultsPath -ErrorAction SilentlyContinue)
@@ -87,7 +99,7 @@ Pause
 
 
 $sb = {
-	param ([string]$server,[string]$yarascanpath,[string]$ResultsPath)
+	param ([string]$server,[string]$yarascanpath,[string]$yaraiocpath,[string]$vcruntime,[string]$ResultsPath)
 	
 	If (!(Test-Connection -comp $server -count 1 -ea 0 -quiet))
 	{
@@ -107,6 +119,11 @@ $sb = {
 		catch { "Error Copying File To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
 			break
 		}
+
+		try { Copy-Item -Path $vcruntime -Destination "\\$server\c$\vcruntime140.dll" -ErrorAction Stop}
+		catch { "Error Copying vcruntime140.dll To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
+			break
+		}
 		
         try { $diskstoscan = Get-WmiObject Win32_Logicaldisk -Namespace "root\cimv2" -Computer $server | where {($_.DriveType -match '3')} | Select-Object DeviceID}
         		catch { "Error Quering Remote drives via WMI, Likely Access Denied" | Out-File  "$ResultsPath\$server.wmifailure.txt"
@@ -116,7 +133,7 @@ $sb = {
         ForEach ($disk in $diskstoscan)
         {
             $disk = $disk.DeviceID + "\"
-		    Invoke-Command -ComputerName $server -ScriptBlock { & cmd.exe /c "cd c:\ && yara.exe --recursive --threads 1 C:\toscan.yar $disk >> scan.txt" }	
+		    Invoke-Command -ComputerName $server -ScriptBlock {param($diskinblock) & cmd.exe /c "cd c:\ && yara.exe --recursive --threads=1 C:\toscan.yar $diskinblock >> scan.txt" } -ArgumentList $disk
         }
 
 		$file = "\\$server\c$\scan.txt"
@@ -143,7 +160,7 @@ ForEach ($server in $servers)
 	
 	#"Starting job - $Computer"
 	$i++
-	Start-Job -ScriptBlock $sb -ArgumentList $server, $yarascanpath, $ResultsPath | Out-Null
+	Start-Job -ScriptBlock $sb -ArgumentList $server, $yarascanpath, $yaraiocpath, $vcruntime, $ResultsPath | Out-Null
 	Write-Progress  "Scanning In Progress"
 	write-output CurrentOperation "$i threads created - $($(Get-Job -state running).count) threads open, scanning $server"
 	write-output "$($i / $servers.count * 100) $("% Complete")"
