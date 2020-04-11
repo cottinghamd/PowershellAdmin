@@ -49,14 +49,24 @@ else
 
 
 $workingdir = Split-Path -Path $yarascanpath
-write-host "Checking if a .yar run file is already in the yara working directory"
+write-host "`nChecking if a .yar run file is already in the yara working directory"
 
 If ((Get-ChildItem -Path $workingdir -Filter *.yar -File -Name) -ne $null)
 {
     $yarafile = Get-ChildItem -Path $workingdir -Filter *.yar -File -Name
-    $yarafile = $yarafile[0]
-    $yaraiocpath = $workingdir + "\" + $yarafile
-    write-host "Yar rule file found, using $yaraiocpath"
+    $yaracount = $yarafile | Measure-Object
+
+    If ($yaracount.Count -eq "1")
+    {
+        $yaraiocpath = $workingdir + "\" + $yarafile
+        write-host "Yar rule file found, using $yaraiocpath"
+    }
+    elseif ($yaracount.Count -ne "0")
+    {
+        $yarafile = $yarafile[0]
+        $yaraiocpath = $workingdir + "\" + $yarafile
+        write-host "Multiple Yar rule files found in the directory, using the first yar file $yaraiocpath"
+    }
 }
 else
 {
@@ -73,7 +83,7 @@ else
     }
 }
 
-Write-Host "Checking for VC Runtime Dependency"
+Write-Host "`nChecking for VC Runtime Dependency"
 
 If ((Get-ChildItem -Path $workingdir -Filter vcruntime140.dll -File -Name) -ne $null)
 {
@@ -94,13 +104,13 @@ else
     }
     else
     {
-	    write-host "vcruntime140.dll not found, please check the path you entered" -ForegroundColor Red
+	    write-host "vcruntime140.dll not found, please check the path you entered`n" -ForegroundColor Red
 	    pause
         break
     }
 }
 
-$ResultsPath = $(Read-Host "Please enter the directory you want to output scan results to, for example C:\temp\results (the directory must exist! no trailing \ character required)")
+$ResultsPath = $(Read-Host "`nPlease enter the directory you want to output scan results to, for example C:\temp\results (the directory must exist! no trailing \ character required)")
 If (Test-Path -Path $ResultsPath -ErrorAction SilentlyContinue)
 {
     #Do nothing
