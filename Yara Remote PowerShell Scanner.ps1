@@ -53,9 +53,9 @@ write-host "Checking if a .yar run file is already in the yara working directory
 
 If ((Get-ChildItem -Path $workingdir -Filter *.yar -File -Name) -ne $null)
 {
-    $yarafile = Get-ChildItem -Path "C:\Users\admin\Documents\PowershellAdmin\" -Filter *.md -File -Name
+    $yarafile = Get-ChildItem -Path $workingdir -Filter *.yar -File -Name
     $yarafile = $yarafile[0]
-    $yaraiocpath = $workingdir + $yarafile
+    $yaraiocpath = $workingdir + "\" + $yarafile
     write-host "Yar rule file found, using $yaraiocpath"
 }
 else
@@ -77,7 +77,7 @@ Write-Host "Checking for VC Runtime Dependency"
 
 If ((Get-ChildItem -Path $workingdir -Filter vcruntime140.dll -File -Name) -ne $null)
 {
-    $vcruntime = $workingdir + "vcruntime140.dll"
+    $vcruntime = $workingdir + "\" + "vcruntime140.dll"
     write-host "vcruntime140 dependency found, using $vcruntime"
 }
 elseif (Test-Path -Path C:\Windows\System32\vcruntime140.dll)
