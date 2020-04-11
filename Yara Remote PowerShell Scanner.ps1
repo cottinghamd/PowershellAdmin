@@ -23,18 +23,6 @@ If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 	Break
 }
 
-$ComputerList = $(Read-Host "Please enter the path to a list of computers you wish to scan, for example C:\Results\DetailedResults.txt")
-If (Test-Path -Path $ComputerList -ErrorAction SilentlyContinue)
-{
-    #Do nothing
-}
-else
-{
-	write-host "ComputerList Not Found, please check the path you entered" -ForegroundColor Red
-	pause
-    break
-}
-
 $yarascanpath = $(Read-Host "Please enter the path to the main yara executable, for example C:\temp\yara.exe")
 If (Test-Path -Path $yarascanpath -ErrorAction SilentlyContinue)
 {
@@ -47,30 +35,70 @@ else
     break
 }
 
-$yaraiocpath = $(Read-Host "Please enter the path to the yara ioc file you wish to use, for example C:\temp\toscan.yar")
-If (Test-Path -Path $yaraiocpath -ErrorAction SilentlyContinue)
+$ComputerList = $(Read-Host "Please enter the path to a list of computers you wish to scan, for example C:\Results\DetailedResults.txt")
+If (Test-Path -Path $ComputerList -ErrorAction SilentlyContinue)
 {
     #Do nothing
 }
 else
 {
-	write-host "yara ioc file not found, please check the path you entered" -ForegroundColor Red
+	write-host "ComputerList Not Found, please check the path you entered" -ForegroundColor Red
 	pause
     break
 }
 
-$vcruntime = $(Read-Host "Please enter the path to the vcruntime140.dll (this adds support for hosts that don't have C++ Runtime installed), for example C:\Windows\System32\vcruntime140.dll")
-If (Test-Path -Path $vcruntime -ErrorAction SilentlyContinue)
+
+$workingdir = Split-Path -Path $yarascanpath
+write-host "Checking if a .yar run file is already in the yara working directory"
+
+If ((Get-ChildItem -Path $workingdir -Filter *.yar -File -Name) -ne $null)
 {
-    #Do nothing
+    $yarafile = Get-ChildItem -Path "C:\Users\admin\Documents\PowershellAdmin\" -Filter *.md -File -Name
+    $yarafile = $yarafile[0]
+    $yaraiocpath = $workingdir + $yarafile
+    write-host "Yar rule file found, using $yaraiocpath"
 }
 else
 {
-	write-host "vcruntime140.dll not found, please check the path you entered" -ForegroundColor Red
-	pause
-    break
+    $yaraiocpath = $(Read-Host "No file found, please enter the path to the yara ioc file you wish to use, for example C:\temp\toscan.yar")
+    If (Test-Path -Path $yaraiocpath -ErrorAction SilentlyContinue)
+    {
+        #Do nothing
+    }
+    else
+    {
+	    write-host "yara ioc file not found, please check the path you entered" -ForegroundColor Red
+	    pause
+        break
+    }
 }
 
+Write-Host "Checking for VC Runtime Dependency"
+
+If ((Get-ChildItem -Path $workingdir -Filter vcruntime140.dll -File -Name) -ne $null)
+{
+    $vcruntime = $workingdir + "vcruntime140.dll"
+    write-host "vcruntime140 dependency found, using $vcruntime"
+}
+elseif (Test-Path -Path C:\Windows\System32\vcruntime140.dll)
+{
+    $vcruntime = "C:\Windows\System32\vcruntime140.dll"
+    Write-Host "Using system provided vcruntime140.dll located at $vcruntime"
+}
+else
+{
+    $vcruntime = $(Read-Host "No VC Runtime dependency found, please enter the path to the vcruntime140.dll (this adds support for hosts that don't have C++ Runtime installed), for example C:\Windows\System32\vcruntime140.dll")
+    If (Test-Path -Path $vcruntime -ErrorAction SilentlyContinue)
+    {
+        #Do nothing
+    }
+    else
+    {
+	    write-host "vcruntime140.dll not found, please check the path you entered" -ForegroundColor Red
+	    pause
+        break
+    }
+}
 
 $ResultsPath = $(Read-Host "Please enter the directory you want to output scan results to, for example C:\temp\results (the directory must exist! no trailing \ character required)")
 If (Test-Path -Path $ResultsPath -ErrorAction SilentlyContinue)
