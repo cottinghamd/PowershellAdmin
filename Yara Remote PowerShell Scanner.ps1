@@ -23,17 +23,76 @@ If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 	Break
 }
 
-$yarascanpath = $(Read-Host "Please enter the path to the main yara executable, for example C:\temp\yara.exe")
-If (Test-Path -Path $yarascanpath -ErrorAction SilentlyContinue)
+$options = $(Read-Host "Do you want to use Yara (for disk scanning), Volatility (for memory scanning) or both? (y/v/b)")
+If ($options -eq "y")
 {
-    #Do nothing
+    Write-Host "Scanning disk with Yara only"
+
+    $yarascanpath = $(Read-Host "Please enter the path to the main yara executable, for example C:\temp\yara.exe")
+    If (Test-Path -Path $yarascanpath -ErrorAction SilentlyContinue)
+    {
+        #Do nothing
+    }
+    else
+    {
+	    write-host "yara binary not found, please check the path you entered" -ForegroundColor Red
+	    pause
+        break
+    }
+}
+elseif ($options -eq "v")
+{
+    Write-Host "Scanning memory with Volatility only"
+    
+    $volatilityscanpath = $(Read-Host "Please enter the path to the main Volatility executable, for example C:\temp\volatility.exe")
+    If (Test-Path -Path $volatilityscanpath -ErrorAction SilentlyContinue)
+    {
+        #Do nothing
+    }
+    else
+    {
+	    write-host "Volatility binary not found, please check the path you entered" -ForegroundColor Red
+	    pause
+        break
+    }
+}
+elseif ($options -eq "b")
+{
+    Write-Host "Scanning both disk and memory with Yara and Volatility"
+
+    $yarascanpath = $(Read-Host "Please enter the path to the main yara executable, for example C:\temp\yara.exe")
+    If (Test-Path -Path $yarascanpath -ErrorAction SilentlyContinue)
+    {
+        #Do nothing
+    }
+    else
+    {
+	    write-host "yara binary not found, please check the path you entered" -ForegroundColor Red
+	    pause
+        break
+    }
+
+    $volatilityscanpath = $(Read-Host "Please enter the path to the main Volatility executable, for example C:\temp\volatility.exe")
+    If (Test-Path -Path $volatilityscanpath -ErrorAction SilentlyContinue)
+    {
+        #Do nothing
+    }
+    else
+    {
+	    write-host "Volatility binary not found, please check the path you entered" -ForegroundColor Red
+	    pause
+        break
+    }
+
 }
 else
 {
-	write-host "yara binary not found, please check the path you entered" -ForegroundColor Red
-	pause
+    Write-Host "Invalid answer, please enter y for Yara only, v for Volatility only, or b for both Yara and Volatility"
     break
 }
+
+
+
 
 $ComputerList = $(Read-Host "Please enter the path to a list of computers you wish to scan, for example C:\Results\DetailedResults.txt")
 If (Test-Path -Path $ComputerList -ErrorAction SilentlyContinue)
@@ -48,8 +107,15 @@ else
 }
 
 
+If ($yarascanpath -ne $null)
+{
 $workingdir = Split-Path -Path $yarascanpath
-write-host "`nChecking if a .yar run file is already in the yara working directory"
+}
+else
+{
+$workingdir = Split-Path -Path $volatilityscanpath
+}
+write-host "`nChecking if a .yar run file is already in the working directory"
 
 If ((Get-ChildItem -Path $workingdir -Filter *.yar -File -Name) -ne $null)
 {
@@ -83,22 +149,25 @@ else
     }
 }
 
-Write-Host "`nChecking for VC Runtime Dependency"
 
-If ((Get-ChildItem -Path $workingdir -Filter vcruntime140.dll -File -Name) -ne $null)
+If ($yarascanpath -ne $null)
 {
-    $vcruntime = $workingdir + "\" + "vcruntime140.dll"
-    write-host "vcruntime140 dependency found, using $vcruntime"
-}
-elseif (Test-Path -Path C:\Windows\System32\vcruntime140.dll)
-{
-    $vcruntime = "C:\Windows\System32\vcruntime140.dll"
-    Write-Host "Using system provided vcruntime140.dll located at $vcruntime"
-}
-else
-{
-    $vcruntime = $(Read-Host "No VC Runtime dependency found, please enter the path to the vcruntime140.dll (this adds support for hosts that don't have C++ Runtime installed), for example C:\Windows\System32\vcruntime140.dll")
-    If (Test-Path -Path $vcruntime -ErrorAction SilentlyContinue)
+    Write-Host "`nChecking for VC Runtime Dependency"
+
+    If ((Get-ChildItem -Path $workingdir -Filter vcruntime140.dll -File -Name) -ne $null)
+    {
+        $vcruntime = $workingdir + "\" + "vcruntime140.dll"
+        write-host "vcruntime140 dependency found, using $vcruntime"
+    }
+    elseif (Test-Path -Path C:\Windows\System32\vcruntime140.dll)
+    {
+        $vcruntime = "C:\Windows\System32\vcruntime140.dll"
+        Write-Host "Using system provided vcruntime140.dll located at $vcruntime"
+    }
+    else
+    {
+        $vcruntime = $(Read-Host "No VC Runtime dependency found, please enter the path to the vcruntime140.dll (this adds support for hosts that don't have C++ Runtime installed), for example C:\Windows\System32\vcruntime140.dll")
+        If (Test-Path -Path $vcruntime -ErrorAction SilentlyContinue)
     {
         #Do nothing
     }
@@ -108,6 +177,7 @@ else
 	    pause
         break
     }
+}
 }
 
 $ResultsPath = $(Read-Host "`nPlease enter the directory you want to output scan results to, for example C:\temp\results (the directory must exist! no trailing \ character required)")
@@ -137,7 +207,7 @@ Pause
 
 
 $sb = {
-	param ([string]$server,[string]$yarascanpath,[string]$yaraiocpath,[string]$vcruntime,[string]$ResultsPath)
+	param ([string]$server,[string]$yarascanpath,[string]$yaraiocpath,[string]$vcruntime,[string]$ResultsPath,[string]$options)
 	
 	If (!(Test-Connection -comp $server -count 1 -ea 0 -quiet))
 	{
@@ -148,20 +218,32 @@ $sb = {
 	else
 	{
 		
-		try { Copy-Item -Path $yarascanpath -Destination "\\$server\c$\yara.exe" -ErrorAction Stop}
-		catch { "Error Copying File To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
-			break
-		}
-
 		try { Copy-Item -Path $yaraiocpath -Destination "\\$server\c$\toscan.yar" -ErrorAction Stop}
 		catch { "Error Copying File To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
-			break
+		    break
 		}
 
-		try { Copy-Item -Path $vcruntime -Destination "\\$server\c$\vcruntime140.dll" -ErrorAction Stop}
-		catch { "Error Copying vcruntime140.dll To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
-			break
-		}
+
+        If ($options -eq "y" -or $options -eq "b")
+        {
+		    try { Copy-Item -Path $yarascanpath -Destination "\\$server\c$\yara.exe" -ErrorAction Stop}
+		    catch { "Error Copying File To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
+			    break
+		    }
+
+		    try { Copy-Item -Path $vcruntime -Destination "\\$server\c$\vcruntime140.dll" -ErrorAction Stop}
+		    catch { "Error Copying vcruntime140.dll To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
+			    break
+		    }
+        }
+        If ($options -eq "v" -or $options -eq "b")
+        {
+            try { Copy-Item -Path $volatilityscanpath -Destination "\\$server\c$\volatility.exe" -ErrorAction Stop}
+		    catch { "Error Copying File To Remote Location, Likely Access Denied" | Out-File  "$ResultsPath\$server.accessdenied.txt"
+			    break
+		    }
+
+        }
 		
         try { $diskstoscan = Get-WmiObject Win32_Logicaldisk -Namespace "root\cimv2" -Computer $server | where {($_.DriveType -match '3')} | Select-Object DeviceID}
         		catch { "Error Quering Remote drives via WMI, Likely Access Denied" | Out-File  "$ResultsPath\$server.wmifailure.txt"
@@ -171,16 +253,25 @@ $sb = {
         ForEach ($disk in $diskstoscan)
         {
             $disk = $disk.DeviceID + "\"
-		    Invoke-Command -ComputerName $server -ScriptBlock {param($diskinblock) & cmd.exe /c "cd c:\ && yara.exe --recursive --threads=1 C:\toscan.yar $diskinblock >> scan.txt" } -ArgumentList $disk
+
+            If ($options -eq "y" -or $options -eq "b")
+            {
+		        Invoke-Command -ComputerName $server -ScriptBlock {param($diskinblock) & cmd.exe /c "cd c:\ && yara.exe --recursive --threads=1 C:\toscan.yar $diskinblock >> yarascan.txt" } -ArgumentList $disk
+            }
+
+            If ($options -eq "v" -or $options -eq "b")
+            {
+                #Put Volatility Command Here
+            }
         }
 
-		$file = "\\$server\c$\scan.txt"
+		$file = "\\$server\c$\yarascan.txt"
 		
-		Get-Content $file | Out-File "$ResultsPath\$server.txt"
+		Get-Content $file | Out-File "$ResultsPath\$server.yara.txt"
 		
 		Remove-Item -Path "\\$server\c$\yara.exe"
 		Remove-Item -Path "\\$server\c$\toscan.yar"
-		Remove-Item -Path "\\$server\c$\scan.txt"
+		Remove-Item -Path "\\$server\c$\yarascan.txt"
 	}
 }
 
@@ -198,7 +289,7 @@ ForEach ($server in $servers)
 	
 	#"Starting job - $Computer"
 	$i++
-	Start-Job -ScriptBlock $sb -ArgumentList $server, $yarascanpath, $yaraiocpath, $vcruntime, $ResultsPath | Out-Null
+	Start-Job -ScriptBlock $sb -ArgumentList $server, $yarascanpath, $yaraiocpath, $vcruntime, $ResultsPath, $options | Out-Null
 	Write-Progress  "Scanning In Progress"
 	write-output CurrentOperation "$i threads created - $($(Get-Job -state running).count) threads open, scanning $server"
 	write-output "$($i / $servers.count * 100) $("% Complete")"
