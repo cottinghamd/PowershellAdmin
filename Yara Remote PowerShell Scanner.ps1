@@ -11,7 +11,7 @@
 	===========================================================================
 #>
 
-Param ($MaxThreads = 50,
+Param ($MaxThreads = 10,
 	$SleepTimer = 500,
 	$MaxWaitAtEnd = 168000)
 
